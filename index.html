@@ -644,8 +644,8 @@
                 </div>
 
                 <!-- Hidden file input triggered by custom buttons -->
-                <!-- Added capture="camera" to allow camera access directly -->
-                <input type="file" id="mealImage" accept="image/*" capture="camera" class="hidden">
+                <!-- Removed capture="camera" to allow both camera and file upload -->
+                <input type="file" id="mealImage" accept="image/*" class="hidden">
                 <input type="text" id="mealNameImage" class="hidden" required> <!-- Hidden field for meal name -->
                 <textarea id="mealDescription" rows="3" placeholder="Brief description (e.g., Two slices of bread with peanut butter)" class="w-full rounded-lg hidden" required></textarea>
                 <div id="imagePreviewContainer" class="mt-2 flex justify-center">
@@ -973,7 +973,7 @@
 
             const proteinCalories = targetCalories * proteinPercentage;
             const carbsCalories = targetCalories * carbsPercentage;
-            const fatsCalories = targetCalories * fatsPercentage; // Corrected: this was accidentally set to 9 instead of fatsPercentage in the previous version.
+            const fatsCalories = targetCalories * fatsPercentage;
 
             return {
                 calories: Math.round(targetCalories),
