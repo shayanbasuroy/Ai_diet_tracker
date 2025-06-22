@@ -514,6 +514,16 @@
         </div>
     </div>
 
+    <!-- New: Photo Source Choice Modal -->
+    <div class="modal-overlay" id="photoSourceModal">
+        <div class="modal-content !gap-6">
+            <button class="modal-close-btn" id="closePhotoSourceModal">&times;</button>
+            <h3 class="card-title !mb-2">Choose Photo Source</h3>
+            <button id="takePhotoBtn" class="btn-primary w-full">Take a Photo</button>
+            <button id="chooseGalleryBtn" class="btn-secondary w-full">Choose from Gallery</button>
+        </div>
+    </div>
+
 
     <div class="app-container">
         <!-- Personal Information Section -->
@@ -634,7 +644,7 @@
             </div>
 
 
-            <h3 class="card-title text-left !mb-4 mt-8">Upload Meal Photos</h3> <!-- Added mt-8 here -->
+            <h3 class="card-title text-left !mb-4 mt-8">Upload Meal Photos</h3>
             <form id="imageMealForm" class="flex flex-col gap-4">
                 <div class="meal-upload-buttons">
                     <button type="button" class="meal-upload-btn breakfast" data-meal-type="Breakfast">Breakfast</button>
@@ -643,9 +653,11 @@
                     <button type="button" class="meal-upload-btn snack" data-meal-type="Snack">Snack</button>
                 </div>
 
-                <!-- Hidden file input triggered by custom buttons -->
-                <!-- Removed capture="camera" to allow both camera and file upload -->
-                <input type="file" id="mealImage" accept="image/*" class="hidden">
+                <!-- Hidden file input for camera -->
+                <input type="file" id="mealImageCamera" accept="image/*" capture="camera" class="hidden">
+                <!-- Hidden file input for gallery upload -->
+                <input type="file" id="mealImageGallery" accept="image/*" class="hidden">
+
                 <input type="text" id="mealNameImage" class="hidden" required> <!-- Hidden field for meal name -->
                 <textarea id="mealDescription" rows="3" placeholder="Brief description (e.g., Two slices of bread with peanut butter)" class="w-full rounded-lg hidden" required></textarea>
                 <div id="imagePreviewContainer" class="mt-2 flex justify-center">
@@ -704,6 +716,7 @@
         const goalsDisplaySection = document.getElementById('goalsDisplaySection');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const aiAnalysisModal = document.getElementById('aiAnalysisModal');
+        const photoSourceModal = document.getElementById('photoSourceModal'); // New: Photo source choice modal
 
         const goalCaloriesSpan = document.getElementById('goalCalories');
         const goalProteinSpan = document.getElementById('goalProtein');
@@ -712,7 +725,8 @@
         const editInfoBtn = document.getElementById('editInfoBtn');
 
         const mealUploadButtons = document.querySelectorAll('.meal-upload-btn');
-        const mealImageInput = document.getElementById('mealImage');
+        const mealImageCameraInput = document.getElementById('mealImageCamera'); // New: Camera input
+        const mealImageGalleryInput = document.getElementById('mealImageGallery'); // New: Gallery input
         const mealNameImageInput = document.getElementById('mealNameImage'); // Hidden meal name input
         const mealImagePreview = document.getElementById('mealImagePreview');
         const mealDescriptionTextarea = document.getElementById('mealDescription');
@@ -729,9 +743,9 @@
         const progressChartCanvas = document.getElementById('progressChart');
         let progressChart; // Will hold the Chart.js instance
 
-        const prevPeriodBtn = document.getElementById('prevPeriodBtn'); // Renamed from prevDayBtn
-        const nextPeriodBtn = document.getElementById('nextPeriodBtn'); // Renamed from nextDayBtn
-        const currentPeriodDisplaySpan = document.getElementById('currentPeriodDisplay'); // Renamed from currentDateSpan
+        const prevPeriodBtn = document.getElementById('prevPeriodBtn');
+        const nextPeriodBtn = document.getElementById('nextPeriodBtn');
+        const currentPeriodDisplaySpan = document.getElementById('currentPeriodDisplay');
 
         // Modal Elements
         const closeAiAnalysisModalBtn = document.getElementById('closeAiAnalysisModal');
@@ -743,6 +757,11 @@
         const modalFatsInput = document.getElementById('modalFats');
         const confirmAddMealBtn = document.getElementById('confirmAddMealBtn');
         const cancelAddMealBtn = document.getElementById('cancelAddMealBtn');
+
+        // New: Photo Source Modal Elements
+        const closePhotoSourceModalBtn = document.getElementById('closePhotoSourceModal');
+        const takePhotoBtn = document.getElementById('takePhotoBtn');
+        const chooseGalleryBtn = document.getElementById('chooseGalleryBtn');
 
         // Error message elements for modal
         const modalMealNameError = document.getElementById('modalMealNameError');
@@ -757,6 +776,8 @@
         // Global state for current displayed date and selected period for the chart
         let currentDisplayDate = new Date(); // Represents a date within the currently viewed period
         let currentChartPeriod = 'daily'; // Default period for the chart
+        let currentMealTypeForUpload = ''; // To store which meal type button was clicked
+        let currentMealForModal = {}; // Declared globally and initialized
 
 
         // --- Helper Functions ---
@@ -805,13 +826,32 @@
             setTimeout(() => {
                 aiAnalysisModal.style.display = 'none';
                 // Clear the original image upload form to prevent re-submission of the same image
-                mealImageInput.value = ''; // Clear file input
+                mealImageCameraInput.value = ''; // Clear camera file input
+                mealImageGalleryInput.value = ''; // Clear gallery file input
                 mealImagePreview.classList.add('hidden');
                 mealImagePreview.src = '#';
                 mealDescriptionTextarea.classList.add('hidden'); // Hide description field
                 analyzeAddMealBtn.classList.add('hidden'); // Hide analyze button
-                mealNameImageInput.classList.add('hidden'); // Hide meal name field
+                mealNameImageInput.classList.add('hidden'); // Hide meal name input
                 clearModalErrors(); // Clear errors when modal is hidden
+            }, 300); // Match transition duration
+        }
+
+        /**
+         * Shows the Photo Source Choice Modal.
+         */
+        function showPhotoSourceModal() {
+            photoSourceModal.classList.add('visible');
+            photoSourceModal.style.display = 'flex';
+        }
+
+        /**
+         * Hides the Photo Source Choice Modal.
+         */
+        function hidePhotoSourceModal() {
+            photoSourceModal.classList.remove('visible');
+            setTimeout(() => {
+                photoSourceModal.style.display = 'none';
             }, 300); // Match transition duration
         }
 
@@ -1134,7 +1174,7 @@
             const tempDate = new Date(startDate);
             tempDate.setHours(0, 0, 0, 0); // Ensure comparison is purely date-based
             const end = new Date(endDate);
-            end.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
 
             while (tempDate <= end) {
                 const formattedDate = formatDate(tempDate);
@@ -1186,12 +1226,12 @@
                 startOfWeek.setHours(0, 0, 0, 0); // Reset time to start of day
                 const endOfWeek = new Date(startOfWeek);
                 endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
-                endOfWeek.setHours(23, 59, 59, 999); // Set time to end of day
+                endOfWeek.setHours(23, 59, 59, 999);
 
                 const aggregated = getAggregatedData(startOfWeek, endOfWeek);
                 actualCalories = aggregated.totalCalories;
                 actualProtein = aggregated.totalProtein;
-                actualCarbs = aggregated.totalCarbs;
+                actualCarbs = aggregated.carbs;
                 actualFats = aggregated.totalFats;
 
                 // Weekly goals are daily goals * 7
@@ -1362,17 +1402,42 @@
             manualMealForm.reset(); // Clear form
         });
 
-        // Event listeners for meal upload buttons
+        // Event listeners for meal upload buttons - NOW OPENS PHOTO SOURCE MODAL
         mealUploadButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const mealType = button.dataset.mealType;
-                mealNameImageInput.value = mealType; // Set hidden meal name input
-                mealImageInput.click(); // Trigger file input click
+                currentMealTypeForUpload = button.dataset.mealType; // Store the meal type
+                mealNameImageInput.value = currentMealTypeForUpload; // Set hidden meal name input
+                showPhotoSourceModal(); // Show the new modal
             });
         });
 
-        // Image upload preview and show description/analyze button
-        mealImageInput.addEventListener('change', (event) => {
+        // New: Event listener for "Take a Photo" button in Photo Source Modal
+        takePhotoBtn.addEventListener('click', () => {
+            hidePhotoSourceModal();
+            mealImageCameraInput.click(); // Trigger camera input
+        });
+
+        // New: Event listener for "Choose from Gallery" button in Photo Source Modal
+        chooseGalleryBtn.addEventListener('click', () => {
+            hidePhotoSourceModal();
+            mealImageGalleryInput.click(); // Trigger gallery input
+        });
+
+        // New: Close Photo Source Modal button
+        closePhotoSourceModalBtn.addEventListener('click', () => {
+            hidePhotoSourceModal();
+        });
+
+
+        // Handle change for BOTH camera and gallery inputs
+        mealImageCameraInput.addEventListener('change', handleImageInputChange);
+        mealImageGalleryInput.addEventListener('change', handleImageInputChange);
+
+        /**
+         * Handles the change event for both image input fields.
+         * @param {Event} event - The change event.
+         */
+        function handleImageInputChange(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -1382,6 +1447,7 @@
                     mealDescriptionTextarea.classList.remove('hidden'); // Show description field
                     analyzeAddMealBtn.classList.remove('hidden'); // Show analyze button
                     mealNameImageInput.classList.remove('hidden'); // Show hidden meal name input for display
+                    // The meal type is already set by the button click that opened the source modal
                 };
                 reader.readAsDataURL(file);
             } else {
@@ -1391,18 +1457,21 @@
                 analyzeAddMealBtn.classList.add('hidden'); // Hide analyze button
                 mealNameImageInput.classList.add('hidden'); // Hide meal name input
             }
-        });
+        }
+
 
         // Image based meal form submission (with AI analysis)
         imageMealForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const mealName = document.getElementById('mealNameImage').value;
             const mealDescription = document.getElementById('mealDescription').value;
-            const mealImageFile = document.getElementById('mealImage').files[0];
+            
+            // Determine which input has a file
+            const mealImageFile = mealImageCameraInput.files[0] || mealImageGalleryInput.files[0];
 
             if (!mealImageFile) {
-                console.log("Please upload an image for AI analysis.");
-                // In a real app, you'd show a custom modal/toast message here.
+                // Display user-friendly message for missing image
+                console.log("Please upload an image for AI analysis."); // Keep console log for debugging
                 return;
             }
 
@@ -1470,6 +1539,7 @@
                         const parsedNutrition = JSON.parse(jsonText);
 
                         const mealData = {
+                            id: generateUniqueId(), // Assign ID here
                             name: mealName,
                             calories: parsedNutrition.calories || 0,
                             protein: parsedNutrition.protein || 0,
@@ -1483,13 +1553,15 @@
 
                     } else {
                         console.error('Gemini API response structure unexpected:', result);
-                        console.log('Could not analyze meal. Please try manual entry or refine description.');
+                        // Provide a more user-friendly message for unexpected API response
+                        alert('Could not analyze meal. The AI response was unexpected. Please try manual entry or refine description.');
                         hideLoading();
                     }
                 };
             } catch (error) {
                 console.error('Error analyzing meal image:', error);
-                console.log('Failed to analyze meal. Please check your internet connection and try again, or use manual entry.');
+                // Provide a more user-friendly message for network/API errors
+                alert('Failed to analyze meal. Please check your internet connection and try again, or use manual entry.');
                 hideLoading();
             }
         });
@@ -1498,7 +1570,7 @@
         confirmAddMealBtn.addEventListener('click', () => {
             if (validateModalInputs()) {
                 const confirmedMeal = {
-                    id: generateUniqueId(),
+                    id: modalMealNameInput.dataset.mealId || generateUniqueId(), // Use existing ID if passed from AI analysis, or generate new
                     name: modalMealNameInput.value,
                     calories: parseInt(modalCaloriesInput.value),
                     protein: parseInt(modalProteinInput.value),
